@@ -33,15 +33,21 @@ static const char *QUEUE_NAME = "JPEG Screenshots Provider Queue";
 @property (nonatomic, readonly) NSMutableArray<GCDAsyncSocket *> *listeningClients;
 @property (nonatomic, readonly) FBImageIOScaler *imageScaler;
 @property (nonatomic, readonly) long long mainScreenID;
+@property (nonatomic, strong) NSTimer *firstScreenshotTimer;
+@property (nonatomic, strong) NSTimer *screenshotTimer;
+@property (nonatomic, strong) NSString *firstSession;
 
 @end
 
 
 @implementation FBMjpegServer
 
+NSData *previousScreenshotData;
+
 - (instancetype)init
 {
   if ((self = [super init])) {
+    previousScreenshotData = nil;
     _listeningClients = [NSMutableArray array];
     dispatch_queue_attr_t queueAttributes = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0);
     _backgroundQueue = dispatch_queue_create(QUEUE_NAME, queueAttributes);
@@ -50,8 +56,41 @@ static const char *QUEUE_NAME = "JPEG Screenshots Provider Queue";
     });
     _imageScaler = [[FBImageIOScaler alloc] init];
     _mainScreenID = [XCUIScreen.mainScreen displayID];
+        
+    self.firstScreenshotTimer = [NSTimer scheduledTimerWithTimeInterval:0.5
+                                                           target:self
+                                                         selector:@selector(sendFirstScreenshot)
+                                                         userInfo:nil
+                                                          repeats:YES];
+    
+    self.screenshotTimer = [NSTimer scheduledTimerWithTimeInterval:20.0
+                                                           target:self
+                                                         selector:@selector(sendPeriodicScreenshot)
+                                                         userInfo:nil
+                                                          repeats:YES];
+    self.firstSession = @"";
   }
   return self;
+}
+
+- (void)sendFirstScreenshot
+{
+  if (![self.firstSession isEqualToString:@""]) {
+    [self sendScreenshot:previousScreenshotData];
+    self.firstSession = @"";
+    return;
+  }
+}
+
+- (void)sendPeriodicScreenshot
+{
+  [self sendScreenshot:previousScreenshotData];
+}
+
+- (void)dealloc
+{
+  [self.firstScreenshotTimer invalidate];
+  [self.screenshotTimer invalidate];
 }
 
 - (void)scheduleNextScreenshotWithInterval:(uint64_t)timerInterval timeStarted:(uint64_t)timeStarted
@@ -90,25 +129,34 @@ static const char *QUEUE_NAME = "JPEG Screenshots Provider Queue";
   CGFloat screenshotCompressionQuality = usesScaling ? FBMaxCompressionQuality : compressionQuality;
   NSError *error;
   NSData *screenshotData = [FBScreenshot takeInOriginalResolutionWithScreenID:self.mainScreenID
-                                                           compressionQuality:screenshotCompressionQuality
-                                                                          uti:UTTypeJPEG
-                                                                      timeout:FRAME_TIMEOUT
-                                                                        error:&error];
+                                                       compressionQuality:screenshotCompressionQuality
+                                                                      uti:UTTypeJPEG
+                                                                  timeout:FRAME_TIMEOUT
+                                                                    error:&error];
+
   if (nil == screenshotData) {
     [FBLogger logFmt:@"%@", error.description];
     [self scheduleNextScreenshotWithInterval:timerInterval timeStarted:timeStarted];
     return;
   }
 
+  if ([screenshotData isEqualToData:previousScreenshotData]) {
+    [self scheduleNextScreenshotWithInterval:timerInterval timeStarted:timeStarted];
+    return;
+  }
+
   if (usesScaling) {
     [self.imageScaler submitImage:screenshotData
-                    scalingFactor:scalingFactor
-               compressionQuality:compressionQuality
-                completionHandler:^(NSData * _Nonnull scaled) {
-                  [self sendScreenshot:scaled];
-                }];
+                  scalingFactor:scalingFactor
+             compressionQuality:compressionQuality
+              completionHandler:^(NSData * _Nonnull scaled) {
+                [self sendScreenshot:scaled];
+                // Update the previous screenshot data
+                previousScreenshotData = scaled;
+              }];
   } else {
     [self sendScreenshot:screenshotData];
+    previousScreenshotData = screenshotData;
   }
 
   [self scheduleNextScreenshotWithInterval:timerInterval timeStarted:timeStarted];
@@ -129,7 +177,10 @@ static const char *QUEUE_NAME = "JPEG Screenshots Provider Queue";
 - (void)didClientConnect:(GCDAsyncSocket *)newClient
 {
   [FBLogger logFmt:@"Got screenshots broadcast client connection at %@:%d", newClient.connectedHost, newClient.connectedPort];
-  // Start broadcast only after there is any data from the client
+  // Start broadcast only after there is any data from the client'
+  
+  self.firstSession = [newClient description];
+
   [newClient readDataWithTimeout:-1 tag:0];
 }
 
