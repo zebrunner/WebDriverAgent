@@ -1,3 +1,75 @@
+## [5.12.2](https://github.com/appium/WebDriverAgent/compare/v5.12.1...v5.12.2) (2023-10-29)
+
+
+### Miscellaneous Chores
+
+* return operation error in `handleKeyboardInput` ([#799](https://github.com/appium/WebDriverAgent/issues/799)) ([247ace6](https://github.com/appium/WebDriverAgent/commit/247ace68f373c09054fabc3be088061089946806))
+
+## [5.12.1](https://github.com/appium/WebDriverAgent/compare/v5.12.0...v5.12.1) (2023-10-28)
+
+
+### Bug Fixes
+
+* when 0 is given for handleKeyboardInput ([#798](https://github.com/appium/WebDriverAgent/issues/798)) ([58ebe8e](https://github.com/appium/WebDriverAgent/commit/58ebe8eb52966963ee30a5c066beb3bf9fed3161))
+
+## [5.12.0](https://github.com/appium/WebDriverAgent/compare/v5.11.7...v5.12.0) (2023-10-26)
+
+
+### Features
+
+* Add an endpoint for keyboard input ([#797](https://github.com/appium/WebDriverAgent/issues/797)) ([aaf70c9](https://github.com/appium/WebDriverAgent/commit/aaf70c9196e4dcb2073da151cda23b2b221d4dae))
+
+## [5.11.7](https://github.com/appium/WebDriverAgent/compare/v5.11.6...v5.11.7) (2023-10-25)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump @typescript-eslint/eslint-plugin from 5.62.0 to 6.9.0 ([#796](https://github.com/appium/WebDriverAgent/issues/796)) ([dabf141](https://github.com/appium/WebDriverAgent/commit/dabf141acd3186b1c27231ef52826fa42208c980))
+
+## [5.11.6](https://github.com/appium/WebDriverAgent/compare/v5.11.5...v5.11.6) (2023-10-25)
+
+
+### Miscellaneous Chores
+
+* disable debugger for wda ([#768](https://github.com/appium/WebDriverAgent/issues/768)) ([e2f4405](https://github.com/appium/WebDriverAgent/commit/e2f4405a3449f1f4d390eae06bf91a220e81b58b))
+
+## [5.11.5](https://github.com/appium/WebDriverAgent/compare/v5.11.4...v5.11.5) (2023-10-23)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump eslint-config-prettier from 8.10.0 to 9.0.0 ([#791](https://github.com/appium/WebDriverAgent/issues/791)) ([f130961](https://github.com/appium/WebDriverAgent/commit/f130961f189f2746d4a2b0a18105fc10203312ca))
+* **deps-dev:** bump lint-staged from 14.0.1 to 15.0.2 ([#792](https://github.com/appium/WebDriverAgent/issues/792)) ([440279d](https://github.com/appium/WebDriverAgent/commit/440279d4f6d069e440180faf4bee8e5dc1758787))
+* **deps-dev:** bump semantic-release from 21.1.2 to 22.0.5 ([#781](https://github.com/appium/WebDriverAgent/issues/781)) ([a967183](https://github.com/appium/WebDriverAgent/commit/a96718308dbd6b13feb30e6ce8f01a7d9b74b146))
+
+## [5.11.4](https://github.com/appium/WebDriverAgent/compare/v5.11.3...v5.11.4) (2023-10-23)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump sinon from 16.1.3 to 17.0.0 ([#795](https://github.com/appium/WebDriverAgent/issues/795)) ([4921899](https://github.com/appium/WebDriverAgent/commit/4921899d96800dbcd59a9c27ba793ad16d0c715b))
+
+## [5.11.3](https://github.com/appium/WebDriverAgent/compare/v5.11.2...v5.11.3) (2023-10-21)
+
+
+### Miscellaneous Chores
+
+* use PRODUCT_BUNDLE_IDENTIFIER to info.plist ([#794](https://github.com/appium/WebDriverAgent/issues/794)) ([543c498](https://github.com/appium/WebDriverAgent/commit/543c49860d2d35148bcbaa33e14d3e1dab058cef))
+
+## [5.11.2](https://github.com/appium/WebDriverAgent/compare/v5.11.1...v5.11.2) (2023-10-19)
+
+
+### Miscellaneous Chores
+
+* Use latest teen_process types ([895cdfc](https://github.com/appium/WebDriverAgent/commit/895cdfc1a316117bb7c8b5be0265b439c1e911bc))
+
+## [5.11.1](https://github.com/appium/WebDriverAgent/compare/v5.11.0...v5.11.1) (2023-10-19)
+
+
+### Miscellaneous Chores
+
+* Use latest types version ([123eefb](https://github.com/appium/WebDriverAgent/commit/123eefba5e5e30100cb3cdff09a516179f78afe7))
+
 ## [5.11.0](https://github.com/appium/WebDriverAgent/compare/v5.10.1...v5.11.0) (2023-10-05)
 
 
