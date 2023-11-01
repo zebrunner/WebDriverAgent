@@ -1,3 +1,17 @@
+## [5.13.0](https://github.com/appium/WebDriverAgent/compare/v5.12.3...v5.13.0) (2023-10-31)
+
+
+### Features
+
+* Add "elementDescription" property to audit issues containing the debug description of an element ([#802](https://github.com/appium/WebDriverAgent/issues/802)) ([9925af4](https://github.com/appium/WebDriverAgent/commit/9925af44ec5fbfb66e6f034dfd93a6c25de48661))
+
+## [5.12.3](https://github.com/appium/WebDriverAgent/compare/v5.12.2...v5.12.3) (2023-10-31)
+
+
+### Miscellaneous Chores
+
+* Return better error on WDA startup timeout ([#801](https://github.com/appium/WebDriverAgent/issues/801)) ([796d5e7](https://github.com/appium/WebDriverAgent/commit/796d5e743676b174221e27e739a0164f4b91533c))
+
 ## [5.12.2](https://github.com/appium/WebDriverAgent/compare/v5.12.1...v5.12.2) (2023-10-29)
 
 
