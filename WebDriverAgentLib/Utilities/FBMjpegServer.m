@@ -17,7 +17,8 @@
 #import "FBConfiguration.h"
 #import "FBLogger.h"
 #import "FBScreenshot.h"
-#import "FBImageIOScaler.h"
+#import "FBImageProcessor.h"
+#import "FBImageUtils.h"
 #import "XCUIScreen.h"
 
 static const NSUInteger MAX_FPS = 60;
@@ -31,7 +32,7 @@ static const char *QUEUE_NAME = "JPEG Screenshots Provider Queue";
 
 @property (nonatomic, readonly) dispatch_queue_t backgroundQueue;
 @property (nonatomic, readonly) NSMutableArray<GCDAsyncSocket *> *listeningClients;
-@property (nonatomic, readonly) FBImageIOScaler *imageScaler;
+@property (nonatomic, readonly) FBImageProcessor *imageProcessor;
 @property (nonatomic, readonly) long long mainScreenID;
 @property (nonatomic, strong) NSTimer *firstScreenshotTimer;
 @property (nonatomic, strong) NSTimer *screenshotTimer;
@@ -54,7 +55,7 @@ NSData *previousScreenshotData;
     dispatch_async(_backgroundQueue, ^{
       [self streamScreenshot];
     });
-    _imageScaler = [[FBImageIOScaler alloc] init];
+    _imageProcessor = [[FBImageProcessor alloc] init];
     _mainScreenID = [XCUIScreen.mainScreen displayID];
         
     self.firstScreenshotTimer = [NSTimer scheduledTimerWithTimeInterval:0.5
@@ -121,13 +122,9 @@ NSData *previousScreenshotData;
     }
   }
 
-  CGFloat scalingFactor = [FBConfiguration mjpegScalingFactor] / 100.0f;
-  BOOL usesScaling = fabs(FBMaxScalingFactor - scalingFactor) > DBL_EPSILON;
-  CGFloat compressionQuality = FBConfiguration.mjpegServerScreenshotQuality / 100.0f;
-  // If scaling is applied we perform another JPEG compression after scaling
-  // To get the desired compressionQuality we need to do a lossless compression here
-  CGFloat screenshotCompressionQuality = usesScaling ? FBMaxCompressionQuality : compressionQuality;
   NSError *error;
+  CGFloat compressionQuality = MAX(FBMinCompressionQuality,
+                                   MIN(FBMaxCompressionQuality, FBConfiguration.mjpegServerScreenshotQuality / 100.0));
   NSData *screenshotData = [FBScreenshot takeInOriginalResolutionWithScreenID:self.mainScreenID
                                                        compressionQuality:screenshotCompressionQuality
                                                                       uti:UTTypeJPEG
@@ -163,7 +160,7 @@ NSData *previousScreenshotData;
 }
 
 - (void)sendScreenshot:(NSData *)screenshotData {
-  NSString *chunkHeader = [NSString stringWithFormat:@"--BoundaryString\r\nContent-type: image/jpg\r\nContent-Length: %@\r\n\r\n", @(screenshotData.length)];
+  NSString *chunkHeader = [NSString stringWithFormat:@"--BoundaryString\r\nContent-type: image/jpeg\r\nContent-Length: %@\r\n\r\n", @(screenshotData.length)];
   NSMutableData *chunk = [[chunkHeader dataUsingEncoding:NSUTF8StringEncoding] mutableCopy];
   [chunk appendData:screenshotData];
   [chunk appendData:(id)[@"\r\n\r\n" dataUsingEncoding:NSUTF8StringEncoding]];
