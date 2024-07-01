@@ -9,7 +9,6 @@
 
 #import <XCTest/XCTest.h>
 
-#import "FBApplication.h"
 #import "FBIntegrationTestCase.h"
 #import "FBMacros.h"
 #import "FBTestMacros.h"
@@ -64,11 +63,6 @@
 
 - (void)testTableViewCells
 {
-  if (SYSTEM_VERSION_GREATER_THAN(@"12.0")) {
-    // The test is flacky on iOS 12+ in Travis env
-    return;
-  }
-
   [self launchApplication];
   [self goToScrollPageWithCells:YES];
   for (int i = 0 ; i < 10 ; i++) {

@@ -12,10 +12,10 @@
 #import <XCTest/XCUIDevice.h>
 #import <CoreLocation/CoreLocation.h>
 
-#import "FBApplication.h"
 #import "FBConfiguration.h"
 #import "FBKeyboard.h"
 #import "FBNotificationsHelper.h"
+#import "FBMathUtils.h"
 #import "FBPasteboard.h"
 #import "FBResponsePayload.h"
 #import "FBRoute.h"
@@ -24,6 +24,7 @@
 #import "FBScreen.h"
 #import "FBSession.h"
 #import "FBXCodeCompatibility.h"
+#import "XCUIApplication.h"
 #import "XCUIApplication+FBHelpers.h"
 #import "XCUIDevice+FBHelpers.h"
 #import "XCUIElement.h"
@@ -48,6 +49,7 @@
     [[FBRoute GET:@"/wda/locked"].withoutSession respondWithTarget:self action:@selector(handleIsLocked:)],
     [[FBRoute GET:@"/wda/locked"] respondWithTarget:self action:@selector(handleIsLocked:)],
     [[FBRoute GET:@"/wda/screen"] respondWithTarget:self action:@selector(handleGetScreen:)],
+    [[FBRoute GET:@"/wda/screen"].withoutSession respondWithTarget:self action:@selector(handleGetScreen:)],
     [[FBRoute GET:@"/wda/activeAppInfo"] respondWithTarget:self action:@selector(handleActiveAppInfo:)],
     [[FBRoute GET:@"/wda/activeAppInfo"].withoutSession respondWithTarget:self action:@selector(handleActiveAppInfo:)],
 #if !TARGET_OS_TV // tvOS does not provide relevant APIs
@@ -134,10 +136,22 @@
 
 + (id<FBResponsePayload>)handleGetScreen:(FBRouteRequest *)request
 {
-  FBSession *session = request.session;
-  CGSize statusBarSize = [FBScreen statusBarSizeForApplication:session.activeApplication];
+  XCUIApplication *app = XCUIApplication.fb_systemApplication;
+
+  XCUIElement *mainStatusBar = app.statusBars.allElementsBoundByIndex.firstObject;
+  CGSize statusBarSize = (nil == mainStatusBar) ? CGSizeZero : mainStatusBar.frame.size;
+
+#if TARGET_OS_TV
+  CGSize screenSize = app.frame.size;
+#else
+  CGSize screenSize = FBAdjustDimensionsForApplication(app.wdFrame.size, app.interfaceOrientation);
+#endif
+
   return FBResponseWithObject(
                               @{
+    @"screenSize":@{@"width": @(screenSize.width),
+                    @"height": @(screenSize.height)
+    },
     @"statusBarSize": @{@"width": @(statusBarSize.width),
                         @"height": @(statusBarSize.height),
     },
@@ -171,7 +185,7 @@
 
 + (id<FBResponsePayload>)handleActiveAppInfo:(FBRouteRequest *)request
 {
-  XCUIApplication *app = request.session.activeApplication ?: FBApplication.fb_activeApplication;
+  XCUIApplication *app = request.session.activeApplication ?: XCUIApplication.fb_activeApplication;
   return FBResponseWithObject(@{
     @"pid": @(app.processID),
     @"bundleId": app.bundleID,

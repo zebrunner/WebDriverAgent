@@ -31,6 +31,7 @@ static NSString *const axSettingsClassName = @"AXSettings";
 
 static BOOL FBShouldUseTestManagerForVisibilityDetection = NO;
 static BOOL FBShouldUseSingletonTestManager = YES;
+static BOOL FBShouldRespectSystemAlerts = NO;
 
 static NSUInteger FBMjpegScalingFactor = 100;
 static NSUInteger FBMjpegServerScreenshotQuality = 10;
@@ -38,7 +39,7 @@ static NSUInteger FBMjpegServerFramerate = 6;
 
 // Session-specific settings
 static BOOL FBShouldTerminateApp;
-static NSUInteger FBMaxTypingFrequency;
+static NSNumber* FBMaxTypingFrequency;
 static NSUInteger FBScreenshotQuality;
 static NSTimeInterval FBCustomSnapshotTimeout;
 static BOOL FBShouldUseFirstMatch;
@@ -55,6 +56,13 @@ static UIInterfaceOrientation FBScreenshotOrientation;
 #endif
 
 @implementation FBConfiguration
+
++ (NSUInteger)defaultTypingFrequency
+{
+  NSInteger defaultFreq = [[NSUserDefaults standardUserDefaults]
+                           integerForKey:@"com.apple.xctest.iOSMaximumTypingFrequency"];
+  return defaultFreq > 0 ? defaultFreq : 60;
+}
 
 + (void)initialize
 {
@@ -143,6 +151,15 @@ static UIInterfaceOrientation FBScreenshotOrientation;
   FBMjpegScalingFactor = scalingFactor;
 }
 
++ (BOOL)mjpegShouldFixOrientation
+{
+  return FBMjpegShouldFixOrientation;
+}
+
++ (void)setMjpegShouldFixOrientation:(BOOL)enabled {
+  FBMjpegShouldFixOrientation = enabled;
+}
+
 + (BOOL)verboseLoggingEnabled
 {
   return [NSProcessInfo.processInfo.environment[@"VERBOSE_LOGGING"] boolValue];
@@ -190,12 +207,17 @@ static UIInterfaceOrientation FBScreenshotOrientation;
 
 + (void)setMaxTypingFrequency:(NSUInteger)value
 {
-  FBMaxTypingFrequency = value;
+  FBMaxTypingFrequency = @(value);
 }
 
 + (NSUInteger)maxTypingFrequency
 {
-  return FBMaxTypingFrequency;
+  if (nil == FBMaxTypingFrequency) {
+    return [self defaultTypingFrequency];
+  }
+  return FBMaxTypingFrequency.integerValue <= 0 
+    ? [self defaultTypingFrequency]
+    : FBMaxTypingFrequency.integerValue;
 }
 
 + (void)setShouldUseSingletonTestManager:(BOOL)value
@@ -351,6 +373,16 @@ static UIInterfaceOrientation FBScreenshotOrientation;
   return [FBGetCustomParameterForElementSnapshot(FBSnapshotMaxDepthKey) intValue];
 }
 
++ (void)setShouldRespectSystemAlerts:(BOOL)value
+{
+  FBShouldRespectSystemAlerts = value;
+}
+
++ (BOOL)shouldRespectSystemAlerts
+{
+  return FBShouldRespectSystemAlerts;
+}
+
 + (void)setUseFirstMatch:(BOOL)enabled
 {
   FBShouldUseFirstMatch = enabled;
@@ -452,7 +484,7 @@ static UIInterfaceOrientation FBScreenshotOrientation;
   FBShouldTerminateApp = YES;
   FBShouldUseCompactResponses = YES;
   FBElementResponseAttributes = @"type,label";
-  FBMaxTypingFrequency = 60;
+  FBMaxTypingFrequency = @([self defaultTypingFrequency]);
   FBScreenshotQuality = 3;
   FBCustomSnapshotTimeout = 15.;
   FBShouldUseFirstMatch = NO;
