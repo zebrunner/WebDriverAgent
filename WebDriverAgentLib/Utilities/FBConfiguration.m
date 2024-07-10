@@ -34,6 +34,7 @@ static BOOL FBShouldUseSingletonTestManager = YES;
 static BOOL FBShouldRespectSystemAlerts = NO;
 
 static NSUInteger FBMjpegScalingFactor = 100;
+static BOOL FBMjpegShouldFixOrientation = NO;
 static NSUInteger FBMjpegServerScreenshotQuality = 10;
 static NSUInteger FBMjpegServerFramerate = 6; 
 
