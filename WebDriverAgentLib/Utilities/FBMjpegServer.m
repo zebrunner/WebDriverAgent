@@ -33,64 +33,25 @@ static const char *QUEUE_NAME = "JPEG Screenshots Provider Queue";
 @property (nonatomic, readonly) NSMutableArray<GCDAsyncSocket *> *listeningClients;
 @property (nonatomic, readonly) FBImageProcessor *imageProcessor;
 @property (nonatomic, readonly) long long mainScreenID;
-@property (nonatomic, strong) NSTimer *firstScreenshotTimer;
-@property (nonatomic, strong) NSTimer *screenshotTimer;
-@property (nonatomic, strong) NSString *firstSession;
 
 @end
 
 
 @implementation FBMjpegServer
 
-NSData *previousScreenshotData;
-
 - (instancetype)init
 {
   if ((self = [super init])) {
-    previousScreenshotData = nil;
     _listeningClients = [NSMutableArray array];
     dispatch_queue_attr_t queueAttributes = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0);
     _backgroundQueue = dispatch_queue_create(QUEUE_NAME, queueAttributes);
-    dispatch_async(_backgroundQueue, ^{
-      [self streamScreenshot];
-    });
+    // dispatch_async(_backgroundQueue, ^{
+    //   [self streamScreenshot];
+    // });
     _imageProcessor = [[FBImageProcessor alloc] init];
     _mainScreenID = [XCUIScreen.mainScreen displayID];
-        
-    self.firstScreenshotTimer = [NSTimer scheduledTimerWithTimeInterval:0.5
-                                                           target:self
-                                                         selector:@selector(sendFirstScreenshot)
-                                                         userInfo:nil
-                                                          repeats:YES];
-    
-    self.screenshotTimer = [NSTimer scheduledTimerWithTimeInterval:20.0
-                                                           target:self
-                                                         selector:@selector(sendPeriodicScreenshot)
-                                                         userInfo:nil
-                                                          repeats:YES];
-    self.firstSession = @"";
   }
   return self;
-}
-
-- (void)sendFirstScreenshot
-{
-  if (![self.firstSession isEqualToString:@""]) {
-    [self sendScreenshot:previousScreenshotData];
-    self.firstSession = @"";
-    return;
-  }
-}
-
-- (void)sendPeriodicScreenshot
-{
-  [self sendScreenshot:previousScreenshotData];
-}
-
-- (void)dealloc
-{
-  [self.firstScreenshotTimer invalidate];
-  [self.screenshotTimer invalidate];
 }
 
 - (void)scheduleNextScreenshotWithInterval:(uint64_t)timerInterval timeStarted:(uint64_t)timeStarted
@@ -98,14 +59,14 @@ NSData *previousScreenshotData;
   uint64_t timeElapsed = clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW) - timeStarted;
   int64_t nextTickDelta = timerInterval - timeElapsed;
   if (nextTickDelta > 0) {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, nextTickDelta), self.backgroundQueue, ^{
-      [self streamScreenshot];
-    });
+    // dispatch_after(dispatch_time(DISPATCH_TIME_NOW, nextTickDelta), self.backgroundQueue, ^{
+    //   [self streamScreenshot];
+    // });
   } else {
     // Try to do our best to keep the FPS at a decent level
-    dispatch_async(self.backgroundQueue, ^{
-      [self streamScreenshot];
-    });
+    // dispatch_async(self.backgroundQueue, ^{
+    //   [self streamScreenshot];
+    // });
   }
 }
 
@@ -136,12 +97,11 @@ NSData *previousScreenshotData;
   }
 
   CGFloat scalingFactor = FBConfiguration.mjpegScalingFactor / 100.0;
-  [self.imageProcessor submitImageData:screenshotData
-                         scalingFactor:scalingFactor
-                     completionHandler:^(NSData * _Nonnull scaled) {
-    [self sendScreenshot:scaled];
-    previousScreenshotData = scaled;
-  }];
+  // [self.imageProcessor submitImageData:screenshotData
+  //                        scalingFactor:scalingFactor
+  //                    completionHandler:^(NSData * _Nonnull scaled) {
+  //   [self sendScreenshot:scaled];
+  // }];
 
   [self scheduleNextScreenshotWithInterval:timerInterval timeStarted:timeStarted];
 }
@@ -161,10 +121,7 @@ NSData *previousScreenshotData;
 - (void)didClientConnect:(GCDAsyncSocket *)newClient
 {
   [FBLogger logFmt:@"Got screenshots broadcast client connection at %@:%d", newClient.connectedHost, newClient.connectedPort];
-  // Start broadcast only after there is any data from the client'
-  
-  self.firstSession = [newClient description];
-
+  // Start broadcast only after there is any data from the client
   [newClient readDataWithTimeout:-1 tag:0];
 }
 

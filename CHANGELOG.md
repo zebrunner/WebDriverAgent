@@ -1,3 +1,67 @@
+## [8.9.1](https://github.com/appium/WebDriverAgent/compare/v8.9.0...v8.9.1) (2024-08-09)
+
+### Bug Fixes
+
+* Update swizzling of waitForQuiescenceIncludingAnimationsIdle: API for Xcode16-beta5 ([#935](https://github.com/appium/WebDriverAgent/issues/935)) ([2ccc436](https://github.com/appium/WebDriverAgent/commit/2ccc436991ca880a1dfdec688dc8167008fe382d))
+
+## [8.9.0](https://github.com/appium/WebDriverAgent/compare/v8.8.0...v8.9.0) (2024-08-07)
+
+### Features
+
+* Add idleTimeoutMs param to the openUrl call ([#933](https://github.com/appium/WebDriverAgent/issues/933)) ([5e98841](https://github.com/appium/WebDriverAgent/commit/5e98841f56eda6454d67d813b921bfcf98f1ff78))
+
+### Bug Fixes
+
+* Revert the logic to open the default URL in Safari via deeplink ([#932](https://github.com/appium/WebDriverAgent/issues/932)) ([7c51145](https://github.com/appium/WebDriverAgent/commit/7c5114518509c9a399845283eca7708248fb838f))
+
+## [8.8.0](https://github.com/appium/WebDriverAgent/compare/v8.7.12...v8.8.0) (2024-08-06)
+
+### Features
+
+* Open the default URL in Safari upon session startup ([#929](https://github.com/appium/WebDriverAgent/issues/929)) ([97cf91d](https://github.com/appium/WebDriverAgent/commit/97cf91de34dc53e5f75f91829dc43224101c1b45))
+
+## [8.7.12](https://github.com/appium/WebDriverAgent/compare/v8.7.11...v8.7.12) (2024-08-02)
+
+### Miscellaneous Chores
+
+* Replace fancy-log dependency with appium logger ([#928](https://github.com/appium/WebDriverAgent/issues/928)) ([5d2ec24](https://github.com/appium/WebDriverAgent/commit/5d2ec249488655451e2d46384e560fee7e08e840))
+
+## [8.7.11](https://github.com/appium/WebDriverAgent/compare/v8.7.10...v8.7.11) (2024-07-29)
+
+### Bug Fixes
+
+* Respond to /health with a proper HTML ([#925](https://github.com/appium/WebDriverAgent/issues/925)) ([42c519f](https://github.com/appium/WebDriverAgent/commit/42c519f9df7beec81175fd38af388975d6f6b800))
+
+## [8.7.10](https://github.com/appium/WebDriverAgent/compare/v8.7.9...v8.7.10) (2024-07-29)
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump @types/node from 20.14.13 to 22.0.0 ([#926](https://github.com/appium/WebDriverAgent/issues/926)) ([1699023](https://github.com/appium/WebDriverAgent/commit/1699023086a243c3d86ddae4da8342c6beda3f48))
+
+## [8.7.9](https://github.com/appium/WebDriverAgent/compare/v8.7.8...v8.7.9) (2024-07-21)
+
+### Miscellaneous Chores
+
+* keep error handling for the future possible usage ([#921](https://github.com/appium/WebDriverAgent/issues/921)) ([2f90739](https://github.com/appium/WebDriverAgent/commit/2f90739340d70073b48c703b36b9a313d3618972))
+
+## [8.7.8](https://github.com/appium/WebDriverAgent/compare/v8.7.7...v8.7.8) (2024-07-18)
+
+### Bug Fixes
+
+* do nothing for an empty array in w3c actions ([#919](https://github.com/appium/WebDriverAgent/issues/919)) ([9e70ec1](https://github.com/appium/WebDriverAgent/commit/9e70ec1dbec1d1844278a58297a5b956ebaeb7fc))
+
+## [8.7.7](https://github.com/appium/WebDriverAgent/compare/v8.7.6...v8.7.7) (2024-07-18)
+
+### Bug Fixes
+
+* Pass-through modifier keys ([#918](https://github.com/appium/WebDriverAgent/issues/918)) ([29d0e5c](https://github.com/appium/WebDriverAgent/commit/29d0e5cb2a19809e1babb06e5adaa49b43c754a5))
+
+## [8.7.6](https://github.com/appium/WebDriverAgent/compare/v8.7.5...v8.7.6) (2024-07-02)
+
+### Miscellaneous Chores
+
+* Simplify xcodebuild lines monitoring ([#916](https://github.com/appium/WebDriverAgent/issues/916)) ([87678f2](https://github.com/appium/WebDriverAgent/commit/87678f260c98b3a3bc3d37017e9ef39098ccb3c4))
+
 ## [8.7.5](https://github.com/appium/WebDriverAgent/compare/v8.7.4...v8.7.5) (2024-06-26)
 
 ### Bug Fixes
