@@ -9,10 +9,12 @@
 
 #import <Foundation/Foundation.h>
 
-@interface FBApplicationDouble : NSObject
-@property (nonatomic, assign, readonly) BOOL didTerminate;
-@property (nonatomic, strong) NSString* bundleID;
-@property (nonatomic) BOOL fb_shouldWaitForQuiescence;
+#import <WebDriverAgentLib/FBCommandHandler.h>
 
-- (BOOL)running;
+NS_ASSUME_NONNULL_BEGIN
+
+@interface FBVideoCommands : NSObject <FBCommandHandler>
+
 @end
+
+NS_ASSUME_NONNULL_END
