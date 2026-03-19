@@ -40,7 +40,7 @@ static BOOL FBShouldRespectSystemAlerts = NO;
 static CGFloat FBMjpegScalingFactor = 100.0;
 static BOOL FBMjpegShouldFixOrientation = NO;
 static NSUInteger FBMjpegServerScreenshotQuality = 10;
-static NSUInteger FBMjpegServerFramerate = 6; 
+static NSUInteger FBMjpegServerFramerate = 6;
 
 // Session-specific settings
 static BOOL FBShouldTerminateApp;
