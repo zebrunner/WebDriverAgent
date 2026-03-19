@@ -3,13 +3,13 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * LICENSE file in the root directory of this source tree.
  */
 
 #import "FBSessionCommands.h"
 
 #import "FBCapabilities.h"
+#import "FBClassChainQueryParser.h"
 #import "FBConfiguration.h"
 #import "FBExceptions.h"
 #import "FBLogger.h"
@@ -336,8 +336,8 @@
       FB_SETTING_SCREENSHOT_QUALITY: @([FBConfiguration screenshotQuality]),
       FB_SETTING_KEYBOARD_AUTOCORRECTION: @([FBConfiguration keyboardAutocorrection]),
       FB_SETTING_KEYBOARD_PREDICTION: @([FBConfiguration keyboardPrediction]),
-      FB_SETTING_CUSTOM_SNAPSHOT_TIMEOUT: @([FBConfiguration customSnapshotTimeout]),
       FB_SETTING_SNAPSHOT_MAX_DEPTH: @([FBConfiguration snapshotMaxDepth]),
+      FB_SETTING_SNAPSHOT_MAX_CHILDREN: @([FBConfiguration snapshotMaxChildren]),
       FB_SETTING_USE_FIRST_MATCH: @([FBConfiguration useFirstMatch]),
       FB_SETTING_WAIT_FOR_IDLE_TIMEOUT: @([FBConfiguration waitForIdleTimeout]),
       FB_SETTING_ANIMATION_COOL_OFF_TIMEOUT: @([FBConfiguration animationCoolOffTimeout]),
@@ -348,9 +348,17 @@
       FB_SETTING_INCLUDE_NON_MODAL_ELEMENTS: @([FBConfiguration includeNonModalElements]),
       FB_SETTING_ACCEPT_ALERT_BUTTON_SELECTOR: FBConfiguration.acceptAlertButtonSelector,
       FB_SETTING_DISMISS_ALERT_BUTTON_SELECTOR: FBConfiguration.dismissAlertButtonSelector,
+      FB_SETTING_AUTO_CLICK_ALERT_SELECTOR: FBConfiguration.autoClickAlertSelector,
       FB_SETTING_DEFAULT_ALERT_ACTION: request.session.defaultAlertAction ?: @"",
       FB_SETTING_MAX_TYPING_FREQUENCY: @([FBConfiguration maxTypingFrequency]),
       FB_SETTING_RESPECT_SYSTEM_ALERTS: @([FBConfiguration shouldRespectSystemAlerts]),
+      FB_SETTING_USE_CLEAR_TEXT_SHORTCUT: @([FBConfiguration useClearTextShortcut]),
+      FB_SETTING_INCLUDE_HITTABLE_IN_PAGE_SOURCE: @([FBConfiguration includeHittableInPageSource]),
+      FB_SETTING_INCLUDE_NATIVE_FRAME_IN_PAGE_SOURCE: @([FBConfiguration includeNativeFrameInPageSource]),
+      FB_SETTING_INCLUDE_MIN_MAX_VALUE_IN_PAGE_SOURCE: @([FBConfiguration includeMinMaxValueInPageSource]),
+      FB_SETTING_INCLUDE_CUSTOM_ACTIONS_IN_PAGE_SOURCE: @([FBConfiguration includeCustomActionsInPageSource]),
+      FB_SETTING_ENFORCE_CUSTOM_SNAPSHOTS: @([FBConfiguration enforceCustomSnapshots]),
+      FB_SETTING_LIMIT_XPATH_CONTEXT_SCOPE: @([FBConfiguration limitXpathContextScope]),
 #if !TARGET_OS_TV
       FB_SETTING_SCREENSHOT_ORIENTATION: [FBConfiguration humanReadableScreenshotOrientation],
 #endif
@@ -380,7 +388,7 @@
     [FBConfiguration setScreenshotQuality:[[settings objectForKey:FB_SETTING_SCREENSHOT_QUALITY] unsignedIntegerValue]];
   }
   if (nil != [settings objectForKey:FB_SETTING_MJPEG_SCALING_FACTOR]) {
-    [FBConfiguration setMjpegScalingFactor:[[settings objectForKey:FB_SETTING_MJPEG_SCALING_FACTOR] unsignedIntegerValue]];
+    [FBConfiguration setMjpegScalingFactor:[[settings objectForKey:FB_SETTING_MJPEG_SCALING_FACTOR] floatValue]];
   }
   if (nil != [settings objectForKey:FB_SETTING_MJPEG_FIX_ORIENTATION]) {
     [FBConfiguration setMjpegShouldFixOrientation:[[settings objectForKey:FB_SETTING_MJPEG_FIX_ORIENTATION] boolValue]];
@@ -394,15 +402,11 @@
   if (nil != [settings objectForKey:FB_SETTING_RESPECT_SYSTEM_ALERTS]) {
     [FBConfiguration setShouldRespectSystemAlerts:[[settings objectForKey:FB_SETTING_RESPECT_SYSTEM_ALERTS] boolValue]];
   }
-  // SNAPSHOT_TIMEOUT setting is deprecated. Please use CUSTOM_SNAPSHOT_TIMEOUT instead
-  if (nil != [settings objectForKey:FB_SETTING_SNAPSHOT_TIMEOUT]) {
-    [FBConfiguration setCustomSnapshotTimeout:[[settings objectForKey:FB_SETTING_SNAPSHOT_TIMEOUT] doubleValue]];
-  }
-  if (nil != [settings objectForKey:FB_SETTING_CUSTOM_SNAPSHOT_TIMEOUT]) {
-    [FBConfiguration setCustomSnapshotTimeout:[[settings objectForKey:FB_SETTING_CUSTOM_SNAPSHOT_TIMEOUT] doubleValue]];
-  }
   if (nil != [settings objectForKey:FB_SETTING_SNAPSHOT_MAX_DEPTH]) {
     [FBConfiguration setSnapshotMaxDepth:[[settings objectForKey:FB_SETTING_SNAPSHOT_MAX_DEPTH] intValue]];
+  }
+  if (nil != [settings objectForKey:FB_SETTING_SNAPSHOT_MAX_CHILDREN]) {
+    [FBConfiguration setSnapshotMaxChildren:[[settings objectForKey:FB_SETTING_SNAPSHOT_MAX_CHILDREN] intValue]];
   }
   if (nil != [settings objectForKey:FB_SETTING_USE_FIRST_MATCH]) {
     [FBConfiguration setUseFirstMatch:[[settings objectForKey:FB_SETTING_USE_FIRST_MATCH] boolValue]];
@@ -437,6 +441,13 @@
   if (nil != [settings objectForKey:FB_SETTING_DISMISS_ALERT_BUTTON_SELECTOR]) {
     [FBConfiguration setDismissAlertButtonSelector:(NSString *)[settings objectForKey:FB_SETTING_DISMISS_ALERT_BUTTON_SELECTOR]];
   }
+  if (nil != [settings objectForKey:FB_SETTING_AUTO_CLICK_ALERT_SELECTOR]) {
+    FBCommandStatus *status = [self.class configureAutoClickAlertWithSelector:settings[FB_SETTING_AUTO_CLICK_ALERT_SELECTOR]
+                                                                   forSession:request.session];
+    if (status.hasError) {
+      return FBResponseWithStatus(status);
+    }
+  }
   if (nil != [settings objectForKey:FB_SETTING_WAIT_FOR_IDLE_TIMEOUT]) {
     [FBConfiguration setWaitForIdleTimeout:[[settings objectForKey:FB_SETTING_WAIT_FOR_IDLE_TIMEOUT] doubleValue]];
   }
@@ -448,6 +459,27 @@
   }
   if (nil != [settings objectForKey:FB_SETTING_MAX_TYPING_FREQUENCY]) {
     [FBConfiguration setMaxTypingFrequency:[[settings objectForKey:FB_SETTING_MAX_TYPING_FREQUENCY] unsignedIntegerValue]];
+  }
+  if (nil != [settings objectForKey:FB_SETTING_USE_CLEAR_TEXT_SHORTCUT]) {
+    [FBConfiguration setUseClearTextShortcut:[[settings objectForKey:FB_SETTING_USE_CLEAR_TEXT_SHORTCUT] boolValue]];
+  }
+  if (nil != [settings objectForKey:FB_SETTING_INCLUDE_HITTABLE_IN_PAGE_SOURCE]) {
+    [FBConfiguration setIncludeHittableInPageSource:[[settings objectForKey:FB_SETTING_INCLUDE_HITTABLE_IN_PAGE_SOURCE] boolValue]];
+  }
+  if (nil != [settings objectForKey:FB_SETTING_INCLUDE_NATIVE_FRAME_IN_PAGE_SOURCE]) {
+    [FBConfiguration setIncludeNativeFrameInPageSource:[[settings objectForKey:FB_SETTING_INCLUDE_NATIVE_FRAME_IN_PAGE_SOURCE] boolValue]];
+  }
+  if (nil != [settings objectForKey:FB_SETTING_INCLUDE_MIN_MAX_VALUE_IN_PAGE_SOURCE]) {
+    [FBConfiguration setIncludeMinMaxValueInPageSource:[[settings objectForKey:FB_SETTING_INCLUDE_MIN_MAX_VALUE_IN_PAGE_SOURCE] boolValue]];
+  }
+  if (nil != [settings objectForKey:FB_SETTING_INCLUDE_CUSTOM_ACTIONS_IN_PAGE_SOURCE]) {
+    [FBConfiguration setIncludeCustomActionsInPageSource:[[settings objectForKey:FB_SETTING_INCLUDE_CUSTOM_ACTIONS_IN_PAGE_SOURCE] boolValue]];
+  }
+  if (nil != [settings objectForKey:FB_SETTING_ENFORCE_CUSTOM_SNAPSHOTS]) {
+    [FBConfiguration setEnforceCustomSnapshots:[[settings objectForKey:FB_SETTING_ENFORCE_CUSTOM_SNAPSHOTS] boolValue]];
+  }
+  if (nil != [settings objectForKey:FB_SETTING_LIMIT_XPATH_CONTEXT_SCOPE]) {
+    [FBConfiguration setLimitXpathContextScope:[[settings objectForKey:FB_SETTING_LIMIT_XPATH_CONTEXT_SCOPE] boolValue]];
   }
 
 #if !TARGET_OS_TV
@@ -466,6 +498,26 @@
 
 
 #pragma mark - Helpers
+
++ (FBCommandStatus *)configureAutoClickAlertWithSelector:(NSString *)selector
+                                              forSession:(FBSession *)session
+{
+  if (0 == [selector length]) {
+    [FBConfiguration setAutoClickAlertSelector:selector];
+    [session disableAlertsMonitor];
+    return [FBCommandStatus ok];
+  }
+
+  NSError *error;
+  FBClassChain *parsedChain = [FBClassChainQueryParser parseQuery:selector error:&error];
+  if (nil == parsedChain) {
+    return [FBCommandStatus invalidSelectorErrorWithMessage:error.localizedDescription
+                                                  traceback:nil];
+  }
+  [FBConfiguration setAutoClickAlertSelector:selector];
+  [session enableAlertsMonitor];
+  return [FBCommandStatus ok];
+}
 
 + (NSString *)buildTimestamp
 {
@@ -502,7 +554,7 @@
   }
   // CarPlay, Mac, Vision UI or unknown are possible
   return @"Unknown";
-  
+
 }
 
 + (NSDictionary *)currentCapabilities

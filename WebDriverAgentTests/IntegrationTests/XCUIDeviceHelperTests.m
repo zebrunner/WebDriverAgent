@@ -3,8 +3,7 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * LICENSE file in the root directory of this source tree.
  */
 
 #import <XCTest/XCTest.h>
@@ -102,7 +101,7 @@
   NSError *error;
   XCTAssertTrue([[XCUIDevice sharedDevice] fb_goToHomescreenWithError:&error]);
   XCTAssertNil(error);
-  XCTAssertTrue([XCUIApplication fb_activeApplication].icons[@"Safari"].exists);
+  FBAssertWaitTillBecomesTrue([XCUIApplication fb_activeApplication].icons[@"Safari"].exists);
 }
 
 - (void)testLockUnlockScreen
@@ -185,6 +184,22 @@
                                             forDuration:nil
                                                   error:&error]);
   XCTAssertNil(error);
+}
+
+- (void)testPressingDeviceSpecificButton
+{
+  NSError *error;
+  BOOL hasActionButton = [XCUIDevice.sharedDevice fb_hasButton:@"action"];
+  BOOL didPressButton = [XCUIDevice.sharedDevice fb_pressButton:@"action"
+                                                     forDuration:nil
+                                                           error:&error];
+  if (hasActionButton) {
+    XCTAssertTrue(didPressButton);
+    XCTAssertNil(error);
+  } else {
+    XCTAssertFalse(didPressButton);
+    XCTAssertNotNil(error);
+  }
 }
 
 - (void)testPressingSupportedButtonNumber

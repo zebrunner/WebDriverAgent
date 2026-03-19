@@ -3,8 +3,7 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * LICENSE file in the root directory of this source tree.
  */
 
 #import "FBMjpegServer.h"
@@ -22,6 +21,8 @@
 
 static const NSUInteger MAX_FPS = 60;
 static const NSTimeInterval FRAME_TIMEOUT = 1.;
+static const NSTimeInterval FAILURE_BACKOFF_MIN = 1.0;
+static const NSTimeInterval FAILURE_BACKOFF_MAX = 10.0;
 
 static NSString *const SERVER_NAME = @"WDA MJPEG Server";
 static const char *QUEUE_NAME = "JPEG Screenshots Provider Queue";
@@ -33,6 +34,7 @@ static const char *QUEUE_NAME = "JPEG Screenshots Provider Queue";
 @property (nonatomic, readonly) NSMutableArray<GCDAsyncSocket *> *listeningClients;
 @property (nonatomic, readonly) FBImageProcessor *imageProcessor;
 @property (nonatomic, readonly) long long mainScreenID;
+@property (nonatomic, assign) NSUInteger consecutiveScreenshotFailures;
 @property (nonatomic, strong) NSTimer *firstScreenshotTimer;
 @property (nonatomic, strong) NSTimer *screenshotTimer;
 @property (nonatomic, strong) NSString *firstSession;
@@ -47,6 +49,7 @@ NSData *previousScreenshotData;
 - (instancetype)init
 {
   if ((self = [super init])) {
+    _consecutiveScreenshotFailures = 0;
     previousScreenshotData = nil;
     _listeningClients = [NSMutableArray array];
     dispatch_queue_attr_t queueAttributes = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0);
@@ -56,13 +59,13 @@ NSData *previousScreenshotData;
     });
     _imageProcessor = [[FBImageProcessor alloc] init];
     _mainScreenID = [XCUIScreen.mainScreen displayID];
-        
+
     self.firstScreenshotTimer = [NSTimer scheduledTimerWithTimeInterval:0.5
                                                            target:self
                                                          selector:@selector(sendFirstScreenshot)
                                                          userInfo:nil
                                                           repeats:YES];
-    
+
     self.screenshotTimer = [NSTimer scheduledTimerWithTimeInterval:20.0
                                                            target:self
                                                          selector:@selector(sendPeriodicScreenshot)
@@ -131,9 +134,15 @@ NSData *previousScreenshotData;
                                                                         error:&error];
   if (nil == screenshotData) {
     [FBLogger logFmt:@"%@", error.description];
-    [self scheduleNextScreenshotWithInterval:timerInterval timeStarted:timeStarted];
+    self.consecutiveScreenshotFailures++;
+    NSTimeInterval backoffSeconds = MIN(FAILURE_BACKOFF_MAX,
+                                        FAILURE_BACKOFF_MIN * (1 << MIN(self.consecutiveScreenshotFailures, 4)));
+    uint64_t backoffInterval = (uint64_t)(backoffSeconds * NSEC_PER_SEC);
+    [self scheduleNextScreenshotWithInterval:backoffInterval timeStarted:timeStarted];
     return;
   }
+
+  self.consecutiveScreenshotFailures = 0;
 
   if ([screenshotData isEqualToData:previousScreenshotData]) {
     [self scheduleNextScreenshotWithInterval:timerInterval timeStarted:timeStarted];
@@ -166,8 +175,8 @@ NSData *previousScreenshotData;
 - (void)didClientConnect:(GCDAsyncSocket *)newClient
 {
   [FBLogger logFmt:@"Got screenshots broadcast client connection at %@:%d", newClient.connectedHost, newClient.connectedPort];
-  // Start broadcast only after there is any data from the client'
-  
+  // Start broadcast only after there is any data from the client
+
   self.firstSession = [newClient description];
 
   [newClient readDataWithTimeout:-1 tag:0];

@@ -3,8 +3,7 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * LICENSE file in the root directory of this source tree.
  */
 
 #import <XCTest/XCTest.h>
@@ -97,9 +96,18 @@ typedef NS_ENUM(NSUInteger, FBUIInterfaceAppearance) {
 - (BOOL)fb_openUrl:(NSString *)url withApplication:(NSString *)bundleId error:(NSError **)error;
 
 /**
+ Checks if the device has a specific hardware button available.
+
+ @param buttonName The name of the button to check (e.g., "home", "volumeUp", "volumeDown", "action", "camera")
+ @return YES if the button is available on the device, otherwise NO
+ */
+- (BOOL)fb_hasButton:(NSString *)buttonName;
+
+/**
  Presses the corresponding hardware button on the device with duration.
 
- @param buttonName One of the supported button names: volumeUp (real devices only), volumeDown (real device only), home
+ @param buttonName One of the supported button names: volumeUp (real devices only), volumeDown (real device only),
+                   camera (supported iOS 16+ real devices only), action (supported iOS 16+ devices only), home
  @param duration Duration in seconds or nil.
                 This argument works only on tvOS. When this argument is nil on tvOS,
                 https://developer.apple.com/documentation/xctest/xcuiremote/1627476-pressbutton will be called.

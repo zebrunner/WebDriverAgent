@@ -3,8 +3,7 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * LICENSE file in the root directory of this source tree.
  */
 
 #import "XCAXClient_iOS+FBSnapshotReqParams.h"
@@ -20,6 +19,7 @@
   @"maxDepth" : (int)2147483647
  */
 NSString *const FBSnapshotMaxDepthKey = @"maxDepth";
+NSString *const FBSnapshotMaxChildrenKey = @"maxChildren";
 
 static id (*original_defaultParameters)(id, SEL);
 static id (*original_snapshotParameters)(id, SEL);

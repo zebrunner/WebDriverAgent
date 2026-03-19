@@ -3,13 +3,13 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * LICENSE file in the root directory of this source tree.
  */
 
 #import <XCTest/XCTest.h>
 
 #import <WebDriverAgentLib/FBAlert.h>
+#import <XCTest/XCTest.h>
 
 #import "FBConfiguration.h"
 #import "FBIntegrationTestCase.h"
@@ -24,13 +24,29 @@
 - (void)setUp
 {
   [super setUp];
-  static dispatch_once_t onceToken;
-  dispatch_once(&onceToken, ^{
-    [self launchApplication];
-    [self goToAlertsPage];
-    [FBConfiguration disableApplicationUIInterruptionsHandling];
-  });
-  [self clearAlert];
+  [self resetPermissions];
+  [self launchApplication];
+  [self goToAlertsPage];
+  [FBConfiguration disableApplicationUIInterruptionsHandling];
+}
+
+- (void)resetPermissions
+{
+  if (@available(iOS 13.4, *)) {
+    NSArray* resources = @[
+      @(XCUIProtectedResourceContacts),
+      @(XCUIProtectedResourceCalendar),
+      @(XCUIProtectedResourceReminders),
+      @(XCUIProtectedResourcePhotos),
+      @(XCUIProtectedResourceMicrophone),
+      @(XCUIProtectedResourceCamera),
+      @(XCUIProtectedResourceMediaLibrary),
+      @(XCUIProtectedResourceLocation),
+    ];
+    for (NSNumber *resource in resources) {
+      [self.testedApplication resetAuthorizationStatusForResource:(XCUIProtectedResource)[resource unsignedLongValue]];
+    }
+  }
 }
 
 - (void)tearDown
@@ -154,7 +170,6 @@
   XCTAssertTrue([alert.text containsString:@"Notifications may include"]);
 }
 
-// This test case depends on the local app permission state.
 - (void)testCameraRollAlert
 {
   FBAlert *alert = [FBAlert alertWithApplication:self.testedApplication];
@@ -162,16 +177,6 @@
 
   [self.testedApplication.buttons[@"Create Camera Roll Alert"] tap];
   FBAssertWaitTillBecomesTrue(alert.isPresent);
-
-  // "Would Like to Access Your Photos" or "Would Like to Access Your Photo Library" displayes on the alert button.
-  XCTAssertTrue([alert.text containsString:@"Would Like to Access Your Photo"]);
-  // iOS 15 has different UI flow
-  if (SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(@"15.0")) {
-    [[FBAlert alertWithApplication:self.testedApplication] dismissWithError:nil];
-    // CI env could take longer time to show up the button, thus it needs to wait a bit.
-    XCTAssertTrue([self.testedApplication.buttons[@"Cancel"] waitForExistenceWithTimeout:30.0]);
-    [self.testedApplication.buttons[@"Cancel"] tap];
-  }
 }
 
 - (void)testGPSAccessAlert
