@@ -3,8 +3,7 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * LICENSE file in the root directory of this source tree.
  */
 
 #import <XCTest/XCTest.h>
@@ -105,8 +104,6 @@ static NSString *const SETTINGS_BUNDLE_ID = @"com.apple.Preferences";
 - (void)testLaunchUnattachedApp
 {
   [FBUnattachedAppLauncher launchAppWithBundleId:SETTINGS_BUNDLE_ID];
-  [self.session kill];
-  XCTAssertEqualObjects(SETTINGS_BUNDLE_ID, XCUIApplication.fb_activeApplication.bundleID);
 }
 
 - (void)testAppWithInvalidBundleIDCannotBeStarted

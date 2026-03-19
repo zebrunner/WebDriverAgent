@@ -3,8 +3,7 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * LICENSE file in the root directory of this source tree.
  */
 
 #import "FBCustomCommands.h"
@@ -567,7 +566,8 @@
   FBElementCache *elementCache = request.session.elementCache;
   BOOL hasElement = ![request.parameters[@"uuid"] isEqual:@"0"];
   XCUIElement *destination = hasElement
-    ? [elementCache elementForUUID:(NSString *)request.parameters[@"uuid"]]
+    ? [elementCache elementForUUID:(NSString *)request.parameters[@"uuid"]
+                    checkStaleness:YES]
     : request.session.activeApplication;
   id keys = request.arguments[@"keys"];
 

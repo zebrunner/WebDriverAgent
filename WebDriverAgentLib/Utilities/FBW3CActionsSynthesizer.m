@@ -3,8 +3,7 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * LICENSE file in the root directory of this source tree.
  */
 
 #import "FBW3CActionsSynthesizer.h"
@@ -661,7 +660,7 @@ static NSString *const FB_KEY_ACTIONS = @"actions";
     if ([origin isKindOfClass:XCUIElement.class]) {
       instance = origin;
     } else if ([origin isKindOfClass:NSString.class]) {
-      instance = [self.elementCache elementForUUID:(NSString *)origin];
+      instance = [self.elementCache elementForUUID:(NSString *)origin checkStaleness:YES];
     } else {
       [result addObject:actionItem];
       continue;

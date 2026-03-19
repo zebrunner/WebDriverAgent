@@ -3,8 +3,7 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * LICENSE file in the root directory of this source tree.
  */
 
 #import <XCTest/XCTest.h>
@@ -15,6 +14,7 @@
 #import "FBTestMacros.h"
 #import "XCUIElement.h"
 #import "XCUIElement+FBFind.h"
+#import "XCUIElement+FBUID.h"
 #import "FBXCElementSnapshotWrapper+Helpers.h"
 #import "XCUIElement+FBIsVisible.h"
 #import "XCUIElement+FBClassChain.h"
@@ -93,7 +93,10 @@
   NSArray<XCUIElement *> *matchingSnapshots = [self.testedView fb_descendantsMatchingIdentifier:@"Alerts"
                                                                     shouldReturnAfterFirstMatch:YES];
   XCTAssertEqual(matchingSnapshots.count, 1);
-  for (XCUIElement *el in @[matchingSnapshots.lastObject, matchingSnapshots.lastObject.fb_stableInstance]) {
+  for (XCUIElement *el in @[
+    matchingSnapshots.lastObject,
+    [matchingSnapshots.lastObject fb_stableInstanceWithUid:[matchingSnapshots.lastObject fb_uid]]
+  ]) {
     XCTAssertEqual(el.elementType, XCUIElementTypeButton);
     XCTAssertEqualObjects(el.label, @"Alerts");
   }
@@ -451,6 +454,15 @@
 - (void)testInvisibleDescendantWithXPathQuery
 {
   NSArray<XCUIElement *> *matchingSnapshots = [self.testedApplication fb_descendantsMatchingXPathQuery:@"//XCUIElementTypeStaticText[@visible='false']"
+                                                                           shouldReturnAfterFirstMatch:NO];
+  XCTAssertGreaterThan(matchingSnapshots.count, 1);
+  XCTAssertEqual(matchingSnapshots.lastObject.elementType, XCUIElementTypeStaticText);
+  XCTAssertFalse(matchingSnapshots.lastObject.fb_isVisible);
+}
+
+- (void)testNonHittableDescendantWithXPathQuery
+{
+  NSArray<XCUIElement *> *matchingSnapshots = [self.testedApplication fb_descendantsMatchingXPathQuery:@"//XCUIElementTypeStaticText[@hittable='false']"
                                                                            shouldReturnAfterFirstMatch:NO];
   XCTAssertGreaterThan(matchingSnapshots.count, 1);
   XCTAssertEqual(matchingSnapshots.lastObject.elementType, XCUIElementTypeStaticText);

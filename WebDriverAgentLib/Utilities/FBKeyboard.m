@@ -3,8 +3,7 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * LICENSE file in the root directory of this source tree.
  */
 
 #import "FBKeyboard.h"
@@ -35,7 +34,7 @@
 
     NSPredicate *keySearchPredicate = [NSPredicate predicateWithBlock:^BOOL(id<FBXCElementSnapshot> snapshot,
                                                                             NSDictionary *bindings) {
-      return snapshot.label.length > 0;
+      return snapshot.label.length > 0 && !CGRectIsEmpty(snapshot.frame);
     }];
     XCUIElement *firstKey = [[keyboard descendantsMatchingType:XCUIElementTypeKey]
                              matchingPredicate:keySearchPredicate].allElementsBoundByIndex.firstObject;
