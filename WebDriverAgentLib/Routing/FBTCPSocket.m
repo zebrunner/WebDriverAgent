@@ -74,6 +74,11 @@
   [self.delegate didClientSendData:sock];
 }
 
+- (void)socket:(GCDAsyncSocket *)sock didWriteDataWithTag:(long)tag
+{
+  [self.delegate didClientWriteData:sock withTag:tag];
+}
+
 - (void)socketDidDisconnect:(GCDAsyncSocket *)sock withError:(NSError *)err
 {
   @synchronized(self.connectedClients) {

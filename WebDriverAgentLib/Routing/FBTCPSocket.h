@@ -33,6 +33,14 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (void)didClientDisconnect:(GCDAsyncSocket *)client;
 
+/**
+ The callback which is fired when a data write to a connected client is completed
+
+ @param client The client, which the data has been written to
+ @param tag The tag of the completed write
+ */
+- (void)didClientWriteData:(GCDAsyncSocket *)client withTag:(long)tag;
+
 @end
 
 
