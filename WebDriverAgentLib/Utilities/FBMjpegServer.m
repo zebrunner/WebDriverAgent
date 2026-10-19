@@ -23,6 +23,12 @@ static const NSUInteger MAX_FPS = 60;
 static const NSTimeInterval FRAME_TIMEOUT = 1.;
 static const NSTimeInterval FAILURE_BACKOFF_MIN = 1.0;
 static const NSTimeInterval FAILURE_BACKOFF_MAX = 10.0;
+// A client that does not read its socket would otherwise make every frame queue up in memory
+static const NSUInteger MAX_PENDING_FRAMES_PER_CLIENT = 4;
+// A client that has not read any frame for this long is considered abandoned and gets disconnected
+static const NSTimeInterval STALLED_CLIENT_TIMEOUT = 60.0;
+static const long STREAM_HEADER_TAG = 0;
+static const long FRAME_TAG = 1;
 
 static NSString *const SERVER_NAME = @"WDA MJPEG Server";
 static const char *QUEUE_NAME = "JPEG Screenshots Provider Queue";
@@ -32,6 +38,9 @@ static const char *QUEUE_NAME = "JPEG Screenshots Provider Queue";
 
 @property (nonatomic, readonly) dispatch_queue_t backgroundQueue;
 @property (nonatomic, readonly) NSMutableArray<GCDAsyncSocket *> *listeningClients;
+@property (nonatomic, readonly) NSMapTable<GCDAsyncSocket *, NSNumber *> *pendingFrameCounts;
+@property (nonatomic, readonly) NSMapTable<GCDAsyncSocket *, NSDate *> *lastFrameWriteDates;
+@property (nonatomic, assign) NSUInteger droppedFramesCount;
 @property (nonatomic, readonly) FBImageProcessor *imageProcessor;
 @property (nonatomic, readonly) long long mainScreenID;
 @property (nonatomic, assign) NSUInteger consecutiveScreenshotFailures;
@@ -52,6 +61,9 @@ NSData *previousScreenshotData;
     _consecutiveScreenshotFailures = 0;
     previousScreenshotData = nil;
     _listeningClients = [NSMutableArray array];
+    _pendingFrameCounts = [NSMapTable strongToStrongObjectsMapTable];
+    _lastFrameWriteDates = [NSMapTable strongToStrongObjectsMapTable];
+    _droppedFramesCount = 0;
     dispatch_queue_attr_t queueAttributes = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0);
     _backgroundQueue = dispatch_queue_create(QUEUE_NAME, queueAttributes);
     dispatch_async(_backgroundQueue, ^{
@@ -165,10 +177,27 @@ NSData *previousScreenshotData;
   NSMutableData *chunk = [[chunkHeader dataUsingEncoding:NSUTF8StringEncoding] mutableCopy];
   [chunk appendData:screenshotData];
   [chunk appendData:(id)[@"\r\n\r\n" dataUsingEncoding:NSUTF8StringEncoding]];
+  NSMutableArray<GCDAsyncSocket *> *stalledClients = [NSMutableArray array];
   @synchronized (self.listeningClients) {
     for (GCDAsyncSocket *client in self.listeningClients) {
-      [client writeData:chunk withTimeout:-1 tag:0];
+      NSUInteger pendingFrames = [self.pendingFrameCounts objectForKey:client].unsignedIntegerValue;
+      if (pendingFrames >= MAX_PENDING_FRAMES_PER_CLIENT) {
+        self.droppedFramesCount++;
+        NSDate *lastFrameWriteDate = [self.lastFrameWriteDates objectForKey:client];
+        if (nil != lastFrameWriteDate && -[lastFrameWriteDate timeIntervalSinceNow] >= STALLED_CLIENT_TIMEOUT) {
+          [stalledClients addObject:client];
+        }
+        continue;
+      }
+      [self.pendingFrameCounts setObject:@(pendingFrames + 1) forKey:client];
+      [client writeData:chunk withTimeout:-1 tag:FRAME_TAG];
     }
+  }
+  // Disconnecting outside of the lock, the socket queue may be waiting for it
+  for (GCDAsyncSocket *client in stalledClients) {
+    [FBLogger logFmt:@"Disconnecting the screenshots broadcast client at %@:%d, it has not read any frame for %.0f seconds (%@ frames dropped in total)",
+     client.connectedHost, client.connectedPort, STALLED_CLIENT_TIMEOUT, @(self.droppedFramesCount)];
+    [client disconnect];
   }
 }
 
@@ -192,9 +221,29 @@ NSData *previousScreenshotData;
 
   [FBLogger logFmt:@"Starting screenshots broadcast for the client at %@:%d", client.connectedHost, client.connectedPort];
   NSString *streamHeader = [NSString stringWithFormat:@"HTTP/1.0 200 OK\r\nServer: %@\r\nConnection: close\r\nMax-Age: 0\r\nExpires: 0\r\nCache-Control: no-cache, private\r\nPragma: no-cache\r\nContent-Type: multipart/x-mixed-replace; boundary=--BoundaryString\r\n\r\n", SERVER_NAME];
-  [client writeData:(id)[streamHeader dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:0];
+  [client writeData:(id)[streamHeader dataUsingEncoding:NSUTF8StringEncoding] withTimeout:-1 tag:STREAM_HEADER_TAG];
   @synchronized (self.listeningClients) {
     [self.listeningClients addObject:client];
+    [self.lastFrameWriteDates setObject:[NSDate date] forKey:client];
+  }
+}
+
+- (void)didClientWriteData:(GCDAsyncSocket *)client withTag:(long)tag
+{
+  if (FRAME_TAG != tag) {
+    return;
+  }
+  @synchronized (self.listeningClients) {
+    if (![self.listeningClients containsObject:client]) {
+      return;
+    }
+    NSUInteger pendingFrames = [self.pendingFrameCounts objectForKey:client].unsignedIntegerValue;
+    if (pendingFrames > 1) {
+      [self.pendingFrameCounts setObject:@(pendingFrames - 1) forKey:client];
+    } else {
+      [self.pendingFrameCounts removeObjectForKey:client];
+    }
+    [self.lastFrameWriteDates setObject:[NSDate date] forKey:client];
   }
 }
 
@@ -202,6 +251,8 @@ NSData *previousScreenshotData;
 {
   @synchronized (self.listeningClients) {
     [self.listeningClients removeObject:client];
+    [self.pendingFrameCounts removeObjectForKey:client];
+    [self.lastFrameWriteDates removeObjectForKey:client];
   }
   [FBLogger log:@"Disconnected a client from screenshots broadcast"];
 }
