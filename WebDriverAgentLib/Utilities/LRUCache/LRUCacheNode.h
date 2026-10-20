@@ -26,8 +26,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) id<NSCopying> key;
 /*! Pointer to the next node */
 @property (nonatomic, nullable) LRUCacheNode *next;
-/*! Pointer to the previous node */
-@property (nonatomic, nullable) LRUCacheNode *prev;
+/*! Pointer to the previous node. Weak to avoid retain cycles between neighbour nodes */
+@property (nonatomic, weak, nullable) LRUCacheNode *prev;
 
 /**
  Factory method to create a new cache node with the given value and key
