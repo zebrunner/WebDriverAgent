@@ -46,20 +46,25 @@ static const char *QUEUE_NAME = "JPEG Screenshots Provider Queue";
 @property (nonatomic, assign) NSUInteger consecutiveScreenshotFailures;
 @property (nonatomic, strong) NSTimer *firstScreenshotTimer;
 @property (nonatomic, strong) NSTimer *screenshotTimer;
-@property (nonatomic, strong) NSString *firstSession;
+// Accessed from the main thread and from the sockets queue
+@property (atomic, strong) NSString *firstSession;
+// The last frame sent to clients. Accessed from the main thread and from the image processing queue
+@property (atomic, strong, nullable) NSData *lastSentScreenshotData;
+// The last captured frame before scaling and the settings it was processed with.
+// Only accessed from the background queue
+@property (nonatomic, strong, nullable) NSData *lastCapturedScreenshotData;
+@property (nonatomic, assign) CGFloat lastScalingFactor;
+@property (nonatomic, assign) BOOL lastShouldFixOrientation;
 
 @end
 
 
 @implementation FBMjpegServer
 
-NSData *previousScreenshotData;
-
 - (instancetype)init
 {
   if ((self = [super init])) {
     _consecutiveScreenshotFailures = 0;
-    previousScreenshotData = nil;
     _listeningClients = [NSMutableArray array];
     _pendingFrameCounts = [NSMapTable strongToStrongObjectsMapTable];
     _lastFrameWriteDates = [NSMapTable strongToStrongObjectsMapTable];
@@ -90,16 +95,22 @@ NSData *previousScreenshotData;
 
 - (void)sendFirstScreenshot
 {
-  if (![self.firstSession isEqualToString:@""]) {
-    [self sendScreenshot:previousScreenshotData];
-    self.firstSession = @"";
+  NSData *screenshotData = self.lastSentScreenshotData;
+  // Keep waiting for the first frame if nothing has been captured yet
+  if (nil == screenshotData || [self.firstSession isEqualToString:@""]) {
     return;
   }
+  [self sendScreenshot:screenshotData];
+  self.firstSession = @"";
 }
 
 - (void)sendPeriodicScreenshot
 {
-  [self sendScreenshot:previousScreenshotData];
+  NSData *screenshotData = self.lastSentScreenshotData;
+  if (nil == screenshotData) {
+    return;
+  }
+  [self sendScreenshot:screenshotData];
 }
 
 - (void)dealloc
@@ -156,17 +167,27 @@ NSData *previousScreenshotData;
 
   self.consecutiveScreenshotFailures = 0;
 
-  if ([screenshotData isEqualToData:previousScreenshotData]) {
+  CGFloat scalingFactor = FBConfiguration.mjpegScalingFactor / 100.0;
+  BOOL shouldFixOrientation = FBConfiguration.mjpegShouldFixOrientation;
+  // Compare with the previous captured frame rather than with the sent one,
+  // because the latter differs from the captured data if it has been scaled or rotated
+  NSData *lastCapturedScreenshotData = self.lastCapturedScreenshotData;
+  if (nil != lastCapturedScreenshotData
+      && [screenshotData isEqualToData:lastCapturedScreenshotData]
+      && fabs(scalingFactor - self.lastScalingFactor) < DBL_EPSILON
+      && shouldFixOrientation == self.lastShouldFixOrientation) {
     [self scheduleNextScreenshotWithInterval:timerInterval timeStarted:timeStarted];
     return;
   }
+  self.lastCapturedScreenshotData = screenshotData;
+  self.lastScalingFactor = scalingFactor;
+  self.lastShouldFixOrientation = shouldFixOrientation;
 
-  CGFloat scalingFactor = FBConfiguration.mjpegScalingFactor / 100.0;
   [self.imageProcessor submitImageData:screenshotData
                          scalingFactor:scalingFactor
                      completionHandler:^(NSData * _Nonnull scaled) {
+    self.lastSentScreenshotData = scaled;
     [self sendScreenshot:scaled];
-    previousScreenshotData = scaled;
   }];
 
   [self scheduleNextScreenshotWithInterval:timerInterval timeStarted:timeStarted];
@@ -205,9 +226,6 @@ NSData *previousScreenshotData;
 {
   [FBLogger logFmt:@"Got screenshots broadcast client connection at %@:%d", newClient.connectedHost, newClient.connectedPort];
   // Start broadcast only after there is any data from the client
-
-  self.firstSession = [newClient description];
-
   [newClient readDataWithTimeout:-1 tag:0];
 }
 
@@ -226,6 +244,8 @@ NSData *previousScreenshotData;
     [self.listeningClients addObject:client];
     [self.lastFrameWriteDates setObject:[NSDate date] forKey:client];
   }
+  // Ask for the last frame to be resent, so the new client does not wait for the screen to change
+  self.firstSession = [client description];
 }
 
 - (void)didClientWriteData:(GCDAsyncSocket *)client withTag:(long)tag
