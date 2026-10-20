@@ -246,6 +246,10 @@ static const char *QUEUE_NAME = "JPEG Screenshots Provider Queue";
   }
   // Ask for the last frame to be resent, so the new client does not wait for the screen to change
   self.firstSession = [client description];
+  // Do not wait for the next timer tick. The timer still retries if no frame has been captured yet
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [self sendFirstScreenshot];
+  });
 }
 
 - (void)didClientWriteData:(GCDAsyncSocket *)client withTag:(long)tag
