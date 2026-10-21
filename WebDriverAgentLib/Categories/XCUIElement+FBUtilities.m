@@ -139,18 +139,21 @@
     return;
   }
 
-  NSTimeInterval previousTimeout = FBConfiguration.waitForIdleTimeout;
-  BOOL previousQuiescence = self.application.fb_shouldWaitForQuiescence;
-  FBConfiguration.waitForIdleTimeout = timeout;
-  if (!previousQuiescence) {
-    self.application.fb_shouldWaitForQuiescence = YES;
+  XCUIApplication *application = self.application;
+  // Recursive synchronization also covers nested stability checks on this thread.
+  @synchronized (FBConfiguration.class) {
+    NSTimeInterval previousTimeout = FBConfiguration.waitForIdleTimeout;
+    BOOL previousQuiescence = application.fb_shouldWaitForQuiescence;
+    @try {
+      FBConfiguration.waitForIdleTimeout = timeout;
+      application.fb_shouldWaitForQuiescence = YES;
+      [[[application applicationImpl] currentProcess]
+        fb_waitForQuiescenceIncludingAnimationsIdle:YES];
+    } @finally {
+      application.fb_shouldWaitForQuiescence = previousQuiescence;
+      FBConfiguration.waitForIdleTimeout = previousTimeout;
+    }
   }
-  [[[self.application applicationImpl] currentProcess]
-   fb_waitForQuiescenceIncludingAnimationsIdle:YES];
-  if (previousQuiescence != self.application.fb_shouldWaitForQuiescence) {
-    self.application.fb_shouldWaitForQuiescence = previousQuiescence;
-  }
-  FBConfiguration.waitForIdleTimeout = previousTimeout;
 }
 
 - (void)fb_raiseStaleElementExceptionWithError:(NSError *)error __attribute__((noreturn))
