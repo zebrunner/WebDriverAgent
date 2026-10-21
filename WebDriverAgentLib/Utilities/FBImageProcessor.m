@@ -64,9 +64,9 @@ const CGFloat FBMaxCompressionQuality = 1.0f;
       return;
     }
 
-    // We do not want this value to be too high because then we get images larger in size than original ones
-    // Although, we also don't want to lose too much of the quality on recompression
-    CGFloat recompressionQuality = MAX(0.9,
+    // Recompress with the configured quality. Forcing a higher value here makes scaled frames
+    // larger than the original full-size ones for low quality settings, which defeats the purpose of scaling
+    CGFloat recompressionQuality = MAX(FBMinCompressionQuality,
                                        MIN(FBMaxCompressionQuality, FBConfiguration.mjpegServerScreenshotQuality / 100.0));
     NSData *thumbnailData = [self.class fixedImageDataWithImageData:nextImageData
                                                       scalingFactor:scalingFactor
