@@ -54,13 +54,16 @@ Usage: bash Scripts/zebrunner-build.sh [--option value | --option=value]
   --ios-version           iOS simulator version [default: ${DEFAULT_IOS_VERSION:-not set}]
   --tv-version            tvOS simulator version [default: ${DEFAULT_TV_VERSION:-not set}]
   --extra-xc-args         Extra xcodebuild arguments without spaces in values [default: ${DEFAULT_EXTRA_XC_ARGS:-none}]
+  --yes, -y               Start the build without confirmation
   --help                  Show this help
 
 Missing values are requested interactively; Enter accepts the displayed default.
 
 Edit DEFAULT_* at the top of this script to change defaults.
 
-Arguments override environment variables; neither requires interactive confirmation.
+Arguments override environment variables.
+
+The build starts after confirmation; --yes, or stdin that is not a terminal (CI), skips it.
 
 SDK: sim/device = iOS simulator/device; tv_sim/tv_device = tvOS simulator/device.
 DEST: generic = any physical iPhone/iPad; tv_generic = any physical Apple TV.
@@ -84,10 +87,12 @@ Full build output is saved to $LOG_FILE.
 EOF
 }
 
+YES="no"
 while (($#)); do
   option="${1%%=*}"
   case "$option" in
     --help|-h) usage; exit 0 ;;
+    --yes|-y) YES="yes"; shift; continue ;;
     --target|--sdk|--action|--dest|--code-sign|--team-id|--bundle-id|--provisioning-updates|\
     --iphone-model|--ipad-model|--tv-model|--ios-version|--tv-version|--extra-xc-args) ;;
     *) fail "Unknown option: $1" ;;
@@ -234,11 +239,15 @@ printf '\nXcode %s, working directory: %s\n\nBuild command:\n' "$XCODE_VERSION" 
 printf '%q ' "${BUILD_COMMAND[@]}"
 printf '\n\nDerived data will be cleared: %s\n\nLog: %s\n\nArchive: %s\n\n\t' \
   "$DERIVED_DATA_PATH" "$LOG_FILE" "${ZIP_PATH:-none}"
-read -r -p "Run build? [y/N]: " confirmation || fail "Confirmation is required; build not started."
-case "$confirmation" in
-  y|Y|yes|YES) ;;
-  *) echo "Cancelled; build not started."; exit 0 ;;
-esac
+if [[ "$YES" == yes || ! -t 0 ]]; then
+  echo "Starting without confirmation."
+else
+  read -r -p "Run build? [y/N]: " confirmation || fail "Confirmation is required; build not started."
+  case "$confirmation" in
+    y|Y|yes|YES) ;;
+    *) echo "Cancelled; build not started."; exit 0 ;;
+  esac
+fi
 
 cd "$ROOT_DIR"
 mkdir -p "$DERIVED_DATA_PATH" "$(dirname "$LOG_FILE")"
