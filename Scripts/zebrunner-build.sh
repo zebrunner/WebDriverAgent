@@ -3,8 +3,11 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DERIVED_DATA_PATH="/tmp/zebrunner/derivedDataPath/"
-LOG_FILE="/tmp/zebrunner/build.log"
+TMP_ROOT="${TMPDIR:-/tmp}"
+# Per user, so other users' builds are neither cleared nor reused.
+WORK_DIR="${TMP_ROOT%/}/zebrunner-wda-${USER:-$(id -un)}"
+DERIVED_DATA_PATH="$WORK_DIR/derivedDataPath"
+LOG_FILE="$WORK_DIR/build.log"
 # Ignored by git (.gitignore: bundles/).
 BUNDLES_DIR="$ROOT_DIR/bundles"
 SIGNING_IDENTITY="Apple Development"
@@ -70,7 +73,8 @@ CODE_SIGN=no builds unsigned bundles; re-sign device builds before installing.
 CODE_SIGN=yes on devices uses automatic "$SIGNING_IDENTITY" signing with TEAM_ID;
 without provisioning updates, a matching local profile (e.g. TEAM_ID.*) is required.
 
-Derived data is cleared before each run. Only runner builds are archived, into $BUNDLES_DIR
+Derived data ($DERIVED_DATA_PATH, per user) is cleared before each run.
+Only runner builds are archived, into $BUNDLES_DIR
 as WebDriverAgentRunner-Runner-<sdk>-<Xcode version>.zip.
 
 Simulator archives include XCTest from this Xcode, so simctl install/launch works.
