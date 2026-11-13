@@ -29,6 +29,8 @@ DEFAULT_TV_MODEL=""
 DEFAULT_IOS_VERSION=""
 DEFAULT_TV_VERSION=""
 DEFAULT_EXTRA_XC_ARGS=""
+# Empty: ipa for devices, zip for simulators. Not requested interactively.
+DEFAULT_PACKAGE=""
 
 fail() {
   echo "Error: $*" >&2
@@ -54,6 +56,7 @@ Usage: bash Scripts/zebrunner-build.sh [--option value | --option=value]
   --ios-version           iOS simulator version [default: ${DEFAULT_IOS_VERSION:-not set}]
   --tv-version            tvOS simulator version [default: ${DEFAULT_TV_VERSION:-not set}]
   --extra-xc-args         Extra xcodebuild arguments without spaces in values [default: ${DEFAULT_EXTRA_XC_ARGS:-none}]
+  --package               ipa | zip, archive of runner builds [default: ${DEFAULT_PACKAGE:-ipa for devices, zip for simulators}]
   --yes, -y               Start the build without confirmation
   --help                  Show this help
 
@@ -78,7 +81,9 @@ without provisioning updates, a matching local profile (e.g. TEAM_ID.*) is requi
 
 Derived data ($DERIVED_DATA_PATH, per user) is cleared before each run.
 Only runner builds are archived, into $BUNDLES_DIR
-as WebDriverAgentRunner-Runner-<sdk>-<Xcode version>.zip.
+as WebDriverAgentRunner-Runner-<sdk>-<Xcode version>.<package>.
+PACKAGE=ipa (devices only) puts the app into Payload/ for go-ios "ios install" (mcloud WDA_FILE);
+PACKAGE=zip keeps the app at the root, as mcloud-ios-connector expects for simulators.
 
 Simulator archives include XCTest from this Xcode, so simctl install/launch works.
 Except for analyze, $FAST_BUILD_ARGS is added before EXTRA_XC_ARGS.
@@ -94,7 +99,7 @@ while (($#)); do
     --help|-h) usage; exit 0 ;;
     --yes|-y) YES="yes"; shift; continue ;;
     --target|--sdk|--action|--dest|--code-sign|--team-id|--bundle-id|--provisioning-updates|\
-    --iphone-model|--ipad-model|--tv-model|--ios-version|--tv-version|--extra-xc-args) ;;
+    --iphone-model|--ipad-model|--tv-model|--ios-version|--tv-version|--extra-xc-args|--package) ;;
     *) fail "Unknown option: $1" ;;
   esac
   if [[ "$1" == *=* ]]; then
@@ -149,6 +154,16 @@ case "$TARGET:$SDK" in
   lib:sim|lib:device|runner:sim|runner:device|\
   tv_lib:tv_sim|tv_lib:tv_device|tv_runner:tv_sim|tv_runner:tv_device) ;;
   *) fail "TARGET=$TARGET is incompatible with SDK=$SDK. Use lib/runner with sim/device, or tv_lib/tv_runner with tv_sim/tv_device." ;;
+esac
+
+PACKAGE="${PACKAGE:-$DEFAULT_PACKAGE}"
+if [[ -z "$PACKAGE" ]]; then
+  [[ "$SDK" == device || "$SDK" == tv_device ]] && PACKAGE="ipa" || PACKAGE="zip"
+fi
+case "$PACKAGE:$SDK" in
+  ipa:device|ipa:tv_device|zip:*) ;;
+  ipa:*) fail "PACKAGE=ipa requires SDK=device or tv_device; simulators install the app from a zip." ;;
+  *) fail "Invalid PACKAGE '$PACKAGE'; expected: ipa zip" ;;
 esac
 
 case "$SDK:$DEST" in
@@ -230,15 +245,15 @@ XCODE_VERSION="$(xcodebuild -version | awk '/^Xcode / {print $2}')" \
   || fail "xcodebuild is not ready; run: sudo xcode-select -s /Applications/Xcode.app"
 [[ -n "$XCODE_VERSION" ]] || fail "Cannot determine Xcode version"
 
-ZIP_PATH=""
+ARCHIVE_PATH=""
 if [[ "$ACTION" == build && ( "$TARGET" == runner || "$TARGET" == tv_runner ) ]]; then
-  ZIP_PATH="$BUNDLES_DIR/WebDriverAgentRunner-Runner-${SDK}-${XCODE_VERSION}.zip"
+  ARCHIVE_PATH="$BUNDLES_DIR/WebDriverAgentRunner-Runner-${SDK}-${XCODE_VERSION}.${PACKAGE}"
 fi
 
 printf '\nXcode %s, working directory: %s\n\nBuild command:\n' "$XCODE_VERSION" "$ROOT_DIR"
 printf '%q ' "${BUILD_COMMAND[@]}"
 printf '\n\nDerived data will be cleared: %s\n\nLog: %s\n\nArchive: %s\n\n\t' \
-  "$DERIVED_DATA_PATH" "$LOG_FILE" "${ZIP_PATH:-none}"
+  "$DERIVED_DATA_PATH" "$LOG_FILE" "${ARCHIVE_PATH:-none}"
 if [[ "$YES" == yes || ! -t 0 ]]; then
   echo "Starting without confirmation."
 else
@@ -263,7 +278,7 @@ fi
 if [[ "$ACTION" == analyze ]] && find "$ROOT_DIR/clang" -name '*.html' 2>/dev/null | grep -q .; then
   fail "Static analyzer found issues; see $ROOT_DIR/clang"
 fi
-[[ -n "$ZIP_PATH" ]] || { echo "$ACTION succeeded."; exit 0; }
+[[ -n "$ARCHIVE_PATH" ]] || { echo "$ACTION succeeded."; exit 0; }
 
 # Simulator runtimes do not include XCTest, and xcodebuild only supplies it via DYLD_FRAMEWORK_PATH
 # when it launches tests itself. Embed XCTest and its dependencies so `simctl launch` works.
@@ -309,10 +324,18 @@ cd "$DERIVED_DATA_PATH/Build/Products/Debug-$PLATFORM"
 [[ -z "${SIM_PLATFORM:-}" ]] || embed_xctest "$(xcode-select -p)/Platforms/$SIM_PLATFORM.platform/Developer"
 xattr -cr "$BUNDLE"
 mkdir -p "$BUNDLES_DIR"
-rm -f "$ZIP_PATH"
-zip -qry "$ZIP_PATH" "$BUNDLE"
-SUMMARY="$(du -h "$ZIP_PATH" | cut -f1)"
-if [[ "$SDK" == device || "$SDK" == tv_device ]]; then
-  [[ -f "$BUNDLE/embedded.mobileprovision" ]] && SUMMARY="$SUMMARY, signed" || SUMMARY="$SUMMARY, unsigned: re-sign before installing"
+rm -f "$ARCHIVE_PATH"
+if [[ "$PACKAGE" == ipa ]]; then
+  rm -rf "$DERIVED_DATA_PATH/ipa"
+  mkdir -p "$DERIVED_DATA_PATH/ipa/Payload"
+  ditto "$BUNDLE" "$DERIVED_DATA_PATH/ipa/Payload/$BUNDLE"
+  (cd "$DERIVED_DATA_PATH/ipa" && zip -qry "$ARCHIVE_PATH" Payload)
+else
+  zip -qry "$ARCHIVE_PATH" "$BUNDLE"
 fi
-echo "Zip bundled at $ZIP_PATH ($SUMMARY)"
+SUMMARY="$(du -h "$ARCHIVE_PATH" | cut -f1)"
+if [[ "$SDK" == device || "$SDK" == tv_device ]]; then
+  [[ -f "$BUNDLE/embedded.mobileprovision" ]] && SUMMARY="$SUMMARY, signed" \
+    || SUMMARY="$SUMMARY, unsigned: re-sign before installing, see README.md#zebrunner-build"
+fi
+echo "Archive created at $ARCHIVE_PATH ($SUMMARY)"
