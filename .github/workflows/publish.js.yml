@@ -22,6 +22,9 @@ env:
 
 jobs:
   build_matrix:
+    # semantic-release publishes appium-webdriveragent to npm and tags releases: upstream only, not in forks.
+    # The other jobs need this one, so they are skipped too.
+    if: github.repository == 'appium/WebDriverAgent'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
