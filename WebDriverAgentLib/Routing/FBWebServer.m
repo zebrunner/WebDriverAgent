@@ -127,6 +127,9 @@ static NSString *const FBServerURLEndMarker = @"<-ServerURLHere";
   [self readMjpegSettingsFromEnv];
   self.screenshotsBroadcaster = [[FBTCPSocket alloc]
                                  initWithPort:(uint16_t)FBConfiguration.mjpegServerPort];
+  // Bind to the same address as the HTTP server when USE_IP is set (appium/WebDriverAgent#1299).
+  // nil (the default) keeps listening on all interfaces.
+  self.screenshotsBroadcaster.interface = FBConfiguration.bindingIPAddress;
   self.screenshotsBroadcaster.delegate = [[FBMjpegServer alloc] init];
   NSError *error;
   if (![self.screenshotsBroadcaster startWithError:&error]) {

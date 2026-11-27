@@ -49,6 +49,12 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nullable, nonatomic) id<FBTCPSocketDelegate> delegate;
 
 /**
+ The address of the interface to listen on (e.g. @"127.0.0.1"), nil listens on all the interfaces.
+ It must be set before the socket is started
+ */
+@property (nullable, nonatomic, copy) NSString *interface;
+
+/**
  Creates TCP socket isntance which is going to be started on the specified port
 
  @param port The actual port number
